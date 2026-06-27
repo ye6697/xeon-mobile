@@ -1,0 +1,45 @@
+{
+  "name": "SupplyTask",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "in_progress",
+        "completed",
+        "cancelled"
+      ],
+      "default": "open"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "default": "normal"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "related_supplier": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

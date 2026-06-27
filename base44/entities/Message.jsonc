@@ -1,0 +1,39 @@
+{
+  "name": "Message",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "assistant",
+        "system"
+      ]
+    },
+    "content": {
+      "type": "string"
+    },
+    "model_used": {
+      "type": "string"
+    },
+    "file_urls": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile"
+      ],
+      "default": "mobile"
+    }
+  },
+  "required": [
+    "conversation_id",
+    "role",
+    "content"
+  ]
+}

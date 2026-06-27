@@ -1,0 +1,38 @@
+{
+  "name": "XeonConfig",
+  "type": "object",
+  "properties": {
+    "config_key": {
+      "type": "string"
+    },
+    "config_value": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "api",
+        "model",
+        "language",
+        "notifications",
+        "sync",
+        "privacy",
+        "personality",
+        "system_prompt"
+      ],
+      "default": "api"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile"
+      ],
+      "default": "mobile"
+    }
+  },
+  "required": [
+    "config_key",
+    "config_value"
+  ]
+}

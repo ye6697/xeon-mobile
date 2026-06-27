@@ -1,0 +1,57 @@
+{
+  "name": "SupplyOrder",
+  "type": "object",
+  "properties": {
+    "order_number": {
+      "type": "string"
+    },
+    "supplier_id": {
+      "type": "string"
+    },
+    "supplier_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "confirmed",
+        "shipped",
+        "delivered",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "total_amount": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string",
+      "default": "EUR"
+    },
+    "items_description": {
+      "type": "string"
+    },
+    "expected_delivery": {
+      "type": "string",
+      "format": "date"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+      ],
+      "default": "normal"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "order_number",
+    "supplier_name"
+  ]
+}

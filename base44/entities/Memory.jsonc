@@ -1,0 +1,58 @@
+{
+  "name": "Memory",
+  "type": "object",
+  "properties": {
+    "category": {
+      "type": "string",
+      "enum": [
+        "user_profile",
+        "rule",
+        "preference",
+        "project",
+        "task",
+        "note",
+        "context",
+        "knowledge",
+        "supply_data",
+        "setting"
+      ],
+      "default": "note"
+    },
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile"
+      ],
+      "default": "mobile"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "critical"
+      ],
+      "default": "normal"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "tags": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "content",
+    "category"
+  ]
+}

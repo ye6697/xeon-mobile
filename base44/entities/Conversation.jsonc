@@ -1,0 +1,35 @@
+{
+  "name": "Conversation",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "last_message": {
+      "type": "string"
+    },
+    "model_used": {
+      "type": "string",
+      "default": "gpt-5.5"
+    },
+    "message_count": {
+      "type": "number",
+      "default": 0
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile"
+      ],
+      "default": "mobile"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "Notification",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "success",
+        "sync"
+      ],
+      "default": "info"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile",
+        "system"
+      ],
+      "default": "system"
+    }
+  },
+  "required": [
+    "title",
+    "message"
+  ]
+}

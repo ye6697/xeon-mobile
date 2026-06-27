@@ -1,0 +1,54 @@
+{
+  "name": "Supplier",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "low"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "under_review",
+        "blocked"
+      ],
+      "default": "active"
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "contact_phone": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "rating": {
+      "type": "number"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "last_order_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
