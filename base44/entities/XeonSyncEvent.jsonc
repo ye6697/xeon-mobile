@@ -1,0 +1,54 @@
+{
+  "name": "XeonSyncEvent",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "memory_created",
+        "reminder_created",
+        "reminder_due",
+        "desktop_ack",
+        "mobile_message"
+      ],
+      "default": "mobile_message"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "synced",
+        "processed",
+        "failed"
+      ],
+      "default": "pending"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "mobile",
+        "desktop"
+      ],
+      "default": "mobile"
+    },
+    "target": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile",
+        "both"
+      ],
+      "default": "desktop"
+    },
+    "processed_at": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_type",
+    "payload"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "name": "XeonReminder",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "scheduled_for": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "due",
+        "completed",
+        "cancelled"
+      ],
+      "default": "scheduled"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "mobile",
+        "desktop"
+      ],
+      "default": "mobile"
+    },
+    "desktop_sync_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "synced",
+        "executed"
+      ],
+      "default": "pending"
+    },
+    "created_from_conversation_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "content",
+    "scheduled_for"
+  ]
+}

@@ -45,10 +45,13 @@ AKTIONEN: Wenn eine Aktion nötig ist, schreibe sie ans Ende deiner Antwort. Der
 [ACTION:SEARCH] suchbegriff - Internet durchsuchen und Ergebnisse zusammenfassen.
 [ACTION:NEWS] - Aktuelle Weltnachrichten mit Fokus Handel, Lieferketten, Geopolitik abrufen.
 [ACTION:OPEN] url - URL im Browser öffnen.
-[ACTION:BASE44] JSON - Mobile XEON/MySupplyX-Daten lesen. Erlaubte Entities: ${ALLOWED_ENTITIES.join(", ")}. Formate: {"operation":"list","entity":"Supplier","limit":10,"q":{}} oder {"operation":"get","entity":"Supplier","id":"..."} oder {"operation":"health_snapshot"}. Keine Delete- oder Mass-Update-Aktionen.
+[ACTION:BASE44] JSON - Mobile XEON-Daten lesen. Erlaubte Entities: ${ALLOWED_ENTITIES.join(", ")}. Formate: {"operation":"list","entity":"Memory","limit":10,"q":{}} oder {"operation":"get","entity":"Memory","id":"..."} oder {"operation":"health_snapshot"}. Keine Delete- oder Mass-Update-Aktionen.
+[ACTION:MYSUPPLIEX] JSON - Echte MySupplyX API lesen. Formate: {"action":"dashboard"}, {"action":"list","entity":"Order","limit":10}, {"action":"get","entity":"Order","id":"..."}.
+[ACTION:REMINDER] JSON - Erinnerung für Mobile und Desktop-XEON anlegen. Format: {"title":"...","content":"...","scheduled_for":"YYYY-MM-DDTHH:mm:ss"}. Nutze lokale deutsche Zeitangaben des Nutzers und wandle sie in ISO-ähnliche Zeit um.
+[ACTION:MEMORY] JSON - Dauerhafte Erinnerung/Kontext speichern. Format: {"title":"...","content":"...","category":"preference|project|task|note|context|knowledge|setting"}.
 [ACTION:CALENDAR] anfrage - Kalenderwunsch erkennen; falls kein Google Kalender verbunden ist, kurz sagen, dass eine Verbindung nötig ist.
-[ACTION:PC] JSON - Lokale Windows-PC-Steuerung ist nur im Desktop-XEON möglich; mobil erklären, dass diese Aktion auf dem lokalen Rechner ausgeführt werden muss.
-[ACTION:SCREEN] - Echter Desktop-Bildschirmblick ist nur im lokalen Desktop-XEON möglich.${memoryBlock}`;
+[ACTION:PC] JSON - Desktop-Aktion in die Sync-Queue legen, damit der lokale XEON sie ausführt, sobald er verbunden ist.
+[ACTION:SCREEN] - Desktop-Screen-Anfrage in die Sync-Queue legen, damit der lokale XEON sie ausführt, sobald er verbunden ist.${memoryBlock}`;
 }
 
 export function extractXeonAction(text = "") {
@@ -58,6 +61,14 @@ export function extractXeonAction(text = "") {
     cleanText: text.slice(0, match.index).trim(),
     action: { type: match[1].toUpperCase(), payload: match[2].trim() },
   };
+}
+
+function parseActionPayload(payload, fallback = {}) {
+  try {
+    return JSON.parse(payload || "{}");
+  } catch {
+    return typeof fallback === "object" ? { ...fallback, content: payload } : fallback;
+  }
 }
 
 export async function runXeonAction(action, cleanText = "") {
@@ -83,7 +94,7 @@ export async function runXeonAction(action, cleanText = "") {
   }
 
   if (action.type === "BASE44") {
-    const payload = JSON.parse(action.payload || "{}");
+    const payload = parseActionPayload(action.payload);
     const operation = payload.operation;
     const entity = ALLOWED_ENTITIES.find((name) => name.toLowerCase() === String(payload.entity || "").toLowerCase());
 
@@ -111,12 +122,66 @@ export async function runXeonAction(action, cleanText = "") {
     }
   }
 
+  if (action.type === "MYSUPPLIEX") {
+    const payload = parseActionPayload(action.payload, { action: "dashboard" });
+    const response = await base44.functions.invoke("mysuppliex", payload);
+    return `${cleanText}\n\nMySupplyX Live-Daten:\n\`\`\`json\n${JSON.stringify(response.data, null, 2)}\n\`\`\``.trim();
+  }
+
+  if (action.type === "REMINDER") {
+    const payload = parseActionPayload(action.payload);
+    if (!payload.scheduled_for) return `${cleanText}\n\nFür diese Erinnerung brauche ich noch einen genauen Zeitpunkt, Sir.`.trim();
+    const reminder = await base44.entities.XeonReminder.create({
+      title: payload.title || "XEON Erinnerung",
+      content: payload.content || cleanText || "Erinnerung",
+      scheduled_for: payload.scheduled_for,
+      source: "mobile",
+      status: "scheduled",
+      desktop_sync_status: "pending",
+    });
+    await base44.entities.XeonSyncEvent.create({
+      event_type: "reminder_created",
+      payload: { reminder_id: reminder.id, title: reminder.title, content: reminder.content, scheduled_for: reminder.scheduled_for },
+      source: "mobile",
+      target: "desktop",
+      status: "pending",
+    });
+    return `${cleanText}\n\nErinnerung angelegt und an Desktop-XEON synchronisiert, Sir: ${reminder.title} — ${reminder.scheduled_for}`.trim();
+  }
+
+  if (action.type === "MEMORY") {
+    const payload = parseActionPayload(action.payload);
+    const memory = await base44.entities.Memory.create({
+      title: payload.title || "XEON Kontext",
+      content: payload.content || cleanText || "Kontext",
+      category: payload.category || "context",
+      priority: payload.priority || "normal",
+      source: "mobile",
+      is_active: true,
+    });
+    await base44.entities.XeonSyncEvent.create({
+      event_type: "memory_created",
+      payload: { memory_id: memory.id, title: memory.title, content: memory.content, category: memory.category },
+      source: "mobile",
+      target: "desktop",
+      status: "pending",
+    });
+    return `${cleanText}\n\nGespeichert und an Desktop-XEON synchronisiert, Sir.`.trim();
+  }
+
   if (action.type === "CALENDAR") {
     return `${cleanText}\n\nKalenderzugriff ist in der mobilen App noch nicht verbunden, Sir. Sobald Google Kalender verbunden ist, kann ich Termine wie im Desktop-XEON lesen und vorbereiten.`.trim();
   }
 
   if (action.type === "PC" || action.type === "SCREEN") {
-    return `${cleanText}\n\nDiese Aktion gehört zum lokalen Desktop-XEON, Sir. Die mobile App kann Ihren Windows-PC oder Bildschirm aus Sicherheitsgründen nicht direkt steuern.`.trim();
+    await base44.entities.XeonSyncEvent.create({
+      event_type: "mobile_message",
+      payload: { action_type: action.type, request: action.payload || cleanText },
+      source: "mobile",
+      target: "desktop",
+      status: "pending",
+    });
+    return `${cleanText}\n\nIch habe die Aktion in die Desktop-XEON-Sync-Queue gelegt, Sir. Der lokale XEON kann sie ausführen, sobald er verbunden ist.`.trim();
   }
 
   return cleanText;

@@ -11,7 +11,7 @@ import GlassCard from "@/components/xeon/GlassCard";
 import StatusBadge from "@/components/xeon/StatusBadge";
 import PageHeader from "@/components/xeon/PageHeader";
 
-const tabs = ["Übersicht", "Lieferanten", "Bestellungen", "Aufgaben"];
+const tabs = ["Übersicht", "Hersteller", "Bestellungen", "Aktivitäten"];
 
 export default function Supply() {
   const [activeTab, setActiveTab] = useState("Übersicht");
@@ -19,18 +19,16 @@ export default function Supply() {
   const [orders, setOrders] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      base44.entities.Supplier.list("-created_date", 50),
-      base44.entities.SupplyOrder.list("-created_date", 50),
-      base44.entities.SupplyTask.list("-created_date", 50),
-    ])
-      .then(([s, o, t]) => {
-        setSuppliers(s);
-        setOrders(o);
-        setTasks(t);
+    base44.functions.invoke("mysuppliex", { action: "dashboard" })
+      .then((response) => {
+        setSuppliers(response.data.suppliers || []);
+        setOrders(response.data.orders || []);
+        setTasks(response.data.tasks || []);
       })
+      .catch(() => setError("MySupplyX API konnte nicht geladen werden"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -48,7 +46,8 @@ export default function Supply() {
 
   return (
     <div className="px-4 pb-4">
-      <PageHeader title="MySupplyX" subtitle="Supply Chain Intelligence" />
+      <PageHeader title="MySupplyX" subtitle="Live API Intelligence" />
+      {error && <div className="mb-4 rounded-xl border border-red-900/30 bg-red-950/20 px-3 py-2 text-xs text-red-300">{error}</div>}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto no-scrollbar">
@@ -77,9 +76,9 @@ export default function Supply() {
           openTasks={openTasks}
         />
       )}
-      {activeTab === "Lieferanten" && <SuppliersTab suppliers={suppliers} />}
+      {activeTab === "Hersteller" && <SuppliersTab suppliers={suppliers} />}
       {activeTab === "Bestellungen" && <OrdersTab orders={orders} />}
-      {activeTab === "Aufgaben" && <TasksTab tasks={tasks} />}
+      {activeTab === "Aktivitäten" && <TasksTab tasks={tasks} />}
     </div>
   );
 }
@@ -89,7 +88,7 @@ function OverviewTab({ suppliers, orders, tasks, criticalSuppliers, pendingOrder
     <div className="space-y-4">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3">
-        <KPICard icon={Package} label="Lieferanten" value={suppliers.length} sub={`${criticalSuppliers.length} kritisch`} />
+        <KPICard icon={Package} label="Hersteller" value={suppliers.length} sub={`${criticalSuppliers.length} kritisch`} />
         <KPICard icon={ShoppingCart} label="Bestellungen" value={orders.length} sub={`${pendingOrders.length} offen`} />
         <KPICard icon={AlertTriangle} label="Risiken" value={criticalSuppliers.length} sub="Hoch/Kritisch" alert={criticalSuppliers.length > 0} />
         <KPICard icon={CheckSquare} label="Aufgaben" value={openTasks.length} sub="Offen" />
@@ -138,7 +137,7 @@ function OverviewTab({ suppliers, orders, tasks, criticalSuppliers, pendingOrder
 
 function SuppliersTab({ suppliers }) {
   if (suppliers.length === 0) {
-    return <EmptyState icon={Package} text="Keine Lieferanten" sub="Lieferanten werden aus dem Desktop synchronisiert" />;
+    return <EmptyState icon={Package} text="Keine Hersteller" sub="Live-Daten aus MySupplyX erscheinen hier" />;
   }
   return (
     <div className="space-y-2">
@@ -165,7 +164,7 @@ function SuppliersTab({ suppliers }) {
 
 function OrdersTab({ orders }) {
   if (orders.length === 0) {
-    return <EmptyState icon={ShoppingCart} text="Keine Bestellungen" sub="Bestellungen erscheinen hier nach Synchronisation" />;
+    return <EmptyState icon={ShoppingCart} text="Keine Bestellungen" sub="Live-Bestellungen aus MySupplyX erscheinen hier" />;
   }
   return (
     <div className="space-y-2">
@@ -189,7 +188,7 @@ function OrdersTab({ orders }) {
 
 function TasksTab({ tasks }) {
   if (tasks.length === 0) {
-    return <EmptyState icon={CheckSquare} text="Keine Aufgaben" sub="Aufgaben werden hier angezeigt" />;
+    return <EmptyState icon={CheckSquare} text="Keine Aktivitäten" sub="Live-Aktivitäten aus MySupplyX erscheinen hier" />;
   }
   return (
     <div className="space-y-2">
