@@ -207,6 +207,7 @@ export default function Dashboard() {
         <div className="flex-1">
           <p className="text-xs font-medium text-neutral-300">Desktop-Verbindung</p>
           <p className="text-[10px] text-neutral-600">{syncStats.lastSyncedAt ? `Letzter Sync: ${new Date(syncStats.lastSyncedAt).toLocaleString("de-DE")}` : "Noch kein Desktop-Sync"}</p>
+          <p className="text-[10px] text-neutral-600">Mobile chat sync does not trigger AI/API calls.</p>
         </div>
         <StatusBadge status="syncing" label={`${syncStats.pending} offen`} />
       </motion.div>

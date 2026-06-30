@@ -29,6 +29,15 @@
         "mobile"
       ],
       "default": "mobile"
+    },
+    "ai_processing_mode": {
+      "type": "string",
+      "enum": [
+        "none",
+        "local_only",
+        "full"
+      ],
+      "default": "none"
     }
   },
   "required": [

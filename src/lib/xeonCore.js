@@ -79,14 +79,19 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
-export async function createSyncEvent({ event_type, payload, target = "desktop", source = "mobile" }) {
+export async function createSyncEvent({ event_type, payload, target = "desktop", source = "mobile", ai_processing_mode = "none" }) {
   const timestamp = nowIso();
+  const eventPayload = event_type === "conversation_message"
+    ? { ...payload, replay_to_ai: false, billable: false, ai_processing_mode: "none" }
+    : payload;
+
   return base44.entities.XeonSyncEvent.create({
     event_type,
-    payload,
+    payload: eventPayload,
     target,
     source,
     status: "pending",
+    ai_processing_mode,
     sync_id: createSyncId("sync"),
     created_at: timestamp,
     updated_at: timestamp,

@@ -10,7 +10,7 @@ import {
 import XeonLogo from "@/components/xeon/XeonLogo";
 import GlassCard from "@/components/xeon/GlassCard";
 import BottomNav from "@/components/xeon/BottomNav";
-import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, XEON_MODEL } from "@/lib/xeonCore";
+import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, createSyncEvent, XEON_MODEL } from "@/lib/xeonCore";
 
 export default function Chat() {
   const { conversationId } = useParams();
@@ -152,6 +152,22 @@ function ChatConversation({ conversationId }) {
     }
   }, [messages]);
 
+  const syncConversationMessage = async (message) => {
+    await createSyncEvent({
+      event_type: "conversation_message",
+      target: "desktop",
+      ai_processing_mode: "none",
+      payload: {
+        conversation_id: conversationId,
+        message_id: message.id,
+        role: message.role,
+        content: message.content,
+        file_urls: message.file_urls || "",
+        source: "mobile",
+      },
+    });
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
     const userMsg = input.trim();
@@ -163,8 +179,10 @@ function ChatConversation({ conversationId }) {
       role: "user",
       content: userMsg,
       source: "mobile",
+      ai_processing_mode: "none",
     });
     setMessages((prev) => [...prev, userMessage]);
+    await syncConversationMessage(userMessage);
 
     const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
     const systemPrompt = buildXeonSystemPrompt(mems);
@@ -182,8 +200,10 @@ function ChatConversation({ conversationId }) {
       role: "assistant",
       content: finalResponse,
       source: "mobile",
+      ai_processing_mode: "none",
     });
     setMessages((prev) => [...prev, assistantMessage]);
+    await syncConversationMessage(assistantMessage);
 
     await base44.entities.Conversation.update(conversationId, {
       last_message: userMsg,
@@ -206,8 +226,10 @@ function ChatConversation({ conversationId }) {
       content: `📎 Datei hochgeladen: ${file.name}`,
       file_urls: file_url,
       source: "mobile",
+      ai_processing_mode: "none",
     });
     setMessages((prev) => [...prev, userMessage]);
+    await syncConversationMessage(userMessage);
 
     const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
     const response = await base44.integrations.Core.InvokeLLM({
@@ -221,8 +243,10 @@ function ChatConversation({ conversationId }) {
       role: "assistant",
       content: response,
       source: "mobile",
+      ai_processing_mode: "none",
     });
     setMessages((prev) => [...prev, assistantMessage]);
+    await syncConversationMessage(assistantMessage);
     setSending(false);
   };
 
