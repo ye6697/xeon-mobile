@@ -6,6 +6,7 @@ import PulseRing from "@/components/xeon/PulseRing";
 import XeonLogo from "@/components/xeon/XeonLogo";
 import BottomNav from "@/components/xeon/BottomNav";
 import ReactMarkdown from "react-markdown";
+import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, XEON_MODEL } from "@/lib/xeonCore";
 
 const STATUS_LABELS = {
   idle: "Tippe zum Sprechen",
@@ -47,19 +48,17 @@ export default function Voice() {
       setTranscript(transcriptResult);
 
       const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 10);
-      let memCtx = "";
-      if (mems.length > 0) {
-        memCtx = "\n\nKontext:\n" + mems.map((m) => `- ${m.title}: ${m.content}`).join("\n");
-      }
-
       const aiResponse = await base44.integrations.Core.InvokeLLM({
-        prompt: `Du bist XEON – ein fortschrittlicher KI-Assistent. Antworte präzise und professionell auf Deutsch. Halte die Antwort kurz und klar, da sie vorgelesen wird.${memCtx}\n\nNutzer sagt: ${transcriptResult}\n\nXEON:`,
+        model: XEON_MODEL,
+        prompt: `${buildXeonSystemPrompt(mems, { voice: true })}\n\nNutzer sagt: ${transcriptResult}\n\nXEON:`,
       });
-      setResponse(aiResponse);
+      const { cleanText, action } = extractXeonAction(aiResponse);
+      const finalResponse = await runXeonAction(action, cleanText);
+      setResponse(finalResponse);
       setStatus("speaking");
 
       const synth = window.speechSynthesis;
-      const utterance = new SpeechSynthesisUtterance(aiResponse);
+      const utterance = new SpeechSynthesisUtterance(finalResponse);
       utterance.lang = "de-DE";
       utterance.rate = 1;
       utterance.onend = () => setStatus("idle");

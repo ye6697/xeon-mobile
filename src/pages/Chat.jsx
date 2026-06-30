@@ -10,6 +10,7 @@ import {
 import XeonLogo from "@/components/xeon/XeonLogo";
 import GlassCard from "@/components/xeon/GlassCard";
 import BottomNav from "@/components/xeon/BottomNav";
+import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, XEON_MODEL } from "@/lib/xeonCore";
 
 export default function Chat() {
   const { conversationId } = useParams();
@@ -165,26 +166,21 @@ function ChatConversation({ conversationId }) {
     });
     setMessages((prev) => [...prev, userMessage]);
 
-    // Build context from memories
-    let memoryContext = "";
     const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
-    if (mems.length > 0) {
-      memoryContext = "\n\nKontext aus XEON-Erinnerungen:\n" +
-        mems.map((m) => `- [${m.category}] ${m.title}: ${m.content}`).join("\n");
-    }
-
-    const systemPrompt = `Du bist XEON – ein fortschrittlicher KI-Assistent. Du bist präzise, professionell, direkt und intelligent. Du sprichst Deutsch, wenn der Nutzer Deutsch spricht. Du hast Zugriff auf das gesamte XEON-Wissenssystem. Du bist derselbe XEON wie auf dem Desktop – keine vereinfachte Version. Du hilfst bei Recherche, Analyse, Programmierung, Strategie, MySupplyX und allen anderen Aufgaben.${memoryContext}`;
-
+    const systemPrompt = buildXeonSystemPrompt(mems);
     const recentMsgs = messages.slice(-10).map((m) => `${m.role === "user" ? "Nutzer" : "XEON"}: ${m.content}`).join("\n");
 
     const response = await base44.integrations.Core.InvokeLLM({
+      model: XEON_MODEL,
       prompt: `${systemPrompt}\n\nGesprächsverlauf:\n${recentMsgs}\n\nNutzer: ${userMsg}\n\nXEON:`,
     });
+    const { cleanText, action } = extractXeonAction(response);
+    const finalResponse = await runXeonAction(action, cleanText);
 
     const assistantMessage = await base44.entities.Message.create({
       conversation_id: conversationId,
       role: "assistant",
-      content: response,
+      content: finalResponse,
       source: "mobile",
     });
     setMessages((prev) => [...prev, assistantMessage]);
@@ -213,8 +209,10 @@ function ChatConversation({ conversationId }) {
     });
     setMessages((prev) => [...prev, userMessage]);
 
+    const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
     const response = await base44.integrations.Core.InvokeLLM({
-      prompt: `Du bist XEON. Der Nutzer hat eine Datei hochgeladen: ${file.name}. Analysiere sie und gib eine hilfreiche Zusammenfassung.`,
+      model: XEON_MODEL,
+      prompt: `${buildXeonSystemPrompt(mems)}\n\nDer Nutzer hat eine Datei hochgeladen: ${file.name}. Analysiere sie präzise im Stil von XEON und gib eine hilfreiche Zusammenfassung.`,
       file_urls: [file_url],
     });
 
