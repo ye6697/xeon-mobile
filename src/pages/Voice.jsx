@@ -6,7 +6,7 @@ import PulseRing from "@/components/xeon/PulseRing";
 import XeonLogo from "@/components/xeon/XeonLogo";
 import BottomNav from "@/components/xeon/BottomNav";
 import ReactMarkdown from "react-markdown";
-import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, XEON_MODEL } from "@/lib/xeonCore";
+import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, XEON_MODEL, queueDesktopMessage } from "@/lib/xeonCore";
 
 const STATUS_LABELS = {
   idle: "Tippe zum Sprechen",
@@ -22,10 +22,86 @@ export default function Voice() {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
+  const waitForDesktopResponse = async (conversationId) => {
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const messages = await base44.entities.Message.filter({ conversation_id: conversationId }, "created_date", 50);
+      const responseMessage = [...messages].reverse().find((msg) => msg.role === "assistant" && msg.source === "desktop");
+      if (responseMessage?.content) return responseMessage.content;
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+    }
+    return "Sir, ich habe Ihre Nachricht an Desktop-XEON synchronisiert. Die Antwort ist noch unterwegs; offenbar nimmt er gerade den landschaftlich schoenen Weg durch die Queue.";
+  };
+
   const startListening = async () => {
     setTranscript("");
     setResponse("");
     setStatus("listening");
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setStatus("idle");
+      setResponse("Sir, dieser mobile Browser unterstuetzt lokale Spracherkennung nicht. Nutzen Sie bitte den Chat; der verursacht keine Mobile-LLM-Kosten.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "de-DE";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    mediaRecorderRef.current = {
+      state: "recording",
+      stop: () => recognition.stop(),
+    };
+
+    recognition.onerror = () => {
+      setStatus("idle");
+      setResponse("Sir, die lokale Spracherkennung hat gerade nicht sauber geliefert. Technik mit Haltung, aber ohne Ergebnis.");
+    };
+
+    recognition.onresult = async (event) => {
+      const transcriptResult = event.results?.[0]?.[0]?.transcript || "";
+      if (!transcriptResult.trim()) {
+        setStatus("idle");
+        return;
+      }
+      setTranscript(transcriptResult);
+      setStatus("thinking");
+
+      const conv = await base44.entities.Conversation.create({
+        title: transcriptResult.slice(0, 60),
+        source: "mobile",
+      });
+      const userMessage = await base44.entities.Message.create({
+        conversation_id: conv.id,
+        role: "user",
+        content: transcriptResult,
+        source: "mobile",
+      });
+      await queueDesktopMessage({
+        conversationId: conv.id,
+        messageId: userMessage.id,
+        text: transcriptResult,
+        actionType: "VOICE",
+      });
+
+      const finalResponse = await waitForDesktopResponse(conv.id);
+      setResponse(finalResponse);
+      setStatus("speaking");
+
+      const synth = window.speechSynthesis;
+      const utterance = new SpeechSynthesisUtterance(finalResponse);
+      utterance.lang = "de-DE";
+      utterance.rate = 0.95;
+      utterance.onend = () => setStatus("idle");
+      synth.speak(utterance);
+    };
+
+    recognition.onend = () => {
+      if (status === "listening") setStatus("idle");
+    };
+
+    recognition.start();
+    return;
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });

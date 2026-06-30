@@ -109,6 +109,15 @@ export async function runXeonAction(action, cleanText = "") {
   }
 
   if (action.type === "SEARCH" || action.type === "NEWS") {
+    await base44.entities.XeonSyncEvent.create({
+      event_type: "mobile_message",
+      payload: { action_type: action.type, request: action.payload || cleanText },
+      source: "mobile",
+      target: "desktop",
+      status: "pending",
+    });
+    return `${cleanText}\n\nIch habe das an Desktop-XEON gegeben, Sir. Der schwere Teil laeuft dort; sauberer, guenstiger, weniger Zirkus.`.trim();
+
     const topic = action.type === "NEWS"
       ? "Aktuelle Weltnachrichten mit Fokus auf internationalen Handel, Lieferketten, Zölle, Rohstoffe, Energie, Geopolitik und Business-Implikationen für MySupplyX. Deutsch, knapp, strukturiert, mit Abschnitt 'Warum das für Sie relevant ist'."
       : `Recherchiere: ${action.payload}. Antworte auf Deutsch, präzise und mit kurzer Einordnung für Sir.`;
@@ -217,4 +226,20 @@ export async function runXeonAction(action, cleanText = "") {
   }
 
   return cleanText;
+}
+
+export async function queueDesktopMessage({ conversationId, messageId, text, actionType = "CHAT", fileUrl = "" }) {
+  return base44.entities.XeonSyncEvent.create({
+    event_type: "mobile_message",
+    payload: {
+      conversation_id: conversationId,
+      message_id: messageId,
+      text,
+      action_type: actionType,
+      file_url: fileUrl,
+    },
+    source: "mobile",
+    target: "desktop",
+    status: "pending",
+  });
 }
