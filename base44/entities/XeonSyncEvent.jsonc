@@ -6,8 +6,13 @@
       "type": "string",
       "enum": [
         "memory_created",
+        "memory_updated",
         "reminder_created",
+        "reminder_completed",
         "reminder_due",
+        "pc_action_requested",
+        "screen_requested",
+        "conversation_message",
         "desktop_ack",
         "mobile_message"
       ],
@@ -45,6 +50,22 @@
     },
     "processed_at": {
       "type": "string"
+    },
+    "sync_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "last_synced_at": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
     }
   },
   "required": [

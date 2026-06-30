@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 const API_BASE = 'https://mysuppliex.base44.app/api';
-const API_KEY = 'd5ae1c0929124fb0ac2c7c7a286a5f86';
 
 const ALLOWED_ENTITIES = new Set([
   'Order', 'StatusUpdate', 'Message', 'ActivityLog', 'Changelog', 'PaymentSetting', 'AppSettings',
@@ -22,9 +21,11 @@ function toQuery(params) {
 
 async function apiRequest(entity, params = {}, id = null) {
   if (!ALLOWED_ENTITIES.has(entity)) throw new Error('Entity not allowed');
+  const apiKey = Deno.env.get('MYSUPPLIEX_API_KEY');
+  if (!apiKey) throw new Error('MYSUPPLIEX_API_KEY is not configured');
   const query = toQuery(params);
   const url = `${API_BASE}/entities/${entity}${id ? `/${id}` : ''}${query ? `?${query}` : ''}`;
-  const response = await fetch(url, { headers: { api_key: API_KEY } });
+  const response = await fetch(url, { headers: { api_key: apiKey } });
   if (!response.ok) throw new Error(`MySupplyX API error ${response.status}`);
   return await response.json();
 }

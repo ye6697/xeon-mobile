@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [memories, setMemories] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [syncStats, setSyncStats] = useState({ pending: 0, lastSyncedAt: null });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,11 +22,14 @@ export default function Dashboard() {
       base44.entities.Memory.list("-created_date", 5),
       base44.entities.Conversation.list("-created_date", 5),
       base44.entities.Notification.list("-created_date", 5),
+      base44.entities.XeonSyncEvent.filter({ status: "pending" }, "-updated_date", 100),
+      base44.entities.XeonSyncEvent.list("-updated_date", 1),
     ])
-      .then(([m, c, n]) => {
+      .then(([m, c, n, pendingSync, latestSync]) => {
         setMemories(m);
         setConversations(c);
         setNotifications(n);
+        setSyncStats({ pending: pendingSync.length, lastSyncedAt: latestSync[0]?.last_synced_at || latestSync[0]?.updated_at || null });
       })
       .finally(() => setLoading(false));
   }, []);
@@ -76,7 +80,7 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <StatusItem icon={Zap} label="Modell" value="GPT-5.5" />
-          <StatusItem icon={RefreshCw} label="Sync" value="Aktiv" />
+          <StatusItem icon={RefreshCw} label="Sync" value={`${syncStats.pending} pending`} />
           <StatusItem icon={Shield} label="Sicher" value="AES-256" />
         </div>
       </motion.div>
@@ -202,9 +206,9 @@ export default function Dashboard() {
         <Wifi size={16} className="text-red-700 flex-shrink-0" />
         <div className="flex-1">
           <p className="text-xs font-medium text-neutral-300">Desktop-Verbindung</p>
-          <p className="text-[10px] text-neutral-600">Synchronisation aktiv</p>
+          <p className="text-[10px] text-neutral-600">{syncStats.lastSyncedAt ? `Letzter Sync: ${new Date(syncStats.lastSyncedAt).toLocaleString("de-DE")}` : "Noch kein Desktop-Sync"}</p>
         </div>
-        <StatusBadge status="syncing" label="Sync" />
+        <StatusBadge status="syncing" label={`${syncStats.pending} offen`} />
       </motion.div>
     </div>
   );

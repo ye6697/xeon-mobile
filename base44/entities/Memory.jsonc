@@ -48,6 +48,22 @@
     },
     "tags": {
       "type": "string"
+    },
+    "sync_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "last_synced_at": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "default": 1
     }
   },
   "required": [

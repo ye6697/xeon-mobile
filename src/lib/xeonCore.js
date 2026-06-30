@@ -71,6 +71,29 @@ function parseActionPayload(payload, fallback = {}) {
   }
 }
 
+export function createSyncId(prefix = "mobile") {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function nowIso() {
+  return new Date().toISOString();
+}
+
+export async function createSyncEvent({ event_type, payload, target = "desktop", source = "mobile" }) {
+  const timestamp = nowIso();
+  return base44.entities.XeonSyncEvent.create({
+    event_type,
+    payload,
+    target,
+    source,
+    status: "pending",
+    sync_id: createSyncId("sync"),
+    created_at: timestamp,
+    updated_at: timestamp,
+    version: 1,
+  });
+}
+
 export async function runXeonAction(action, cleanText = "") {
   if (!action) return cleanText;
 
@@ -131,6 +154,7 @@ export async function runXeonAction(action, cleanText = "") {
   if (action.type === "REMINDER") {
     const payload = parseActionPayload(action.payload);
     if (!payload.scheduled_for) return `${cleanText}\n\nFür diese Erinnerung brauche ich noch einen genauen Zeitpunkt, Sir.`.trim();
+    const timestamp = nowIso();
     const reminder = await base44.entities.XeonReminder.create({
       title: payload.title || "XEON Erinnerung",
       content: payload.content || cleanText || "Erinnerung",
@@ -138,19 +162,22 @@ export async function runXeonAction(action, cleanText = "") {
       source: "mobile",
       status: "scheduled",
       desktop_sync_status: "pending",
+      sync_id: createSyncId("reminder"),
+      created_at: timestamp,
+      updated_at: timestamp,
+      version: 1,
     });
-    await base44.entities.XeonSyncEvent.create({
+    await createSyncEvent({
       event_type: "reminder_created",
-      payload: { reminder_id: reminder.id, title: reminder.title, content: reminder.content, scheduled_for: reminder.scheduled_for },
-      source: "mobile",
+      payload: { reminder_id: reminder.id, sync_id: reminder.sync_id, title: reminder.title, content: reminder.content, scheduled_for: reminder.scheduled_for },
       target: "desktop",
-      status: "pending",
     });
     return `${cleanText}\n\nErinnerung angelegt und an Desktop-XEON synchronisiert, Sir: ${reminder.title} — ${reminder.scheduled_for}`.trim();
   }
 
   if (action.type === "MEMORY") {
     const payload = parseActionPayload(action.payload);
+    const timestamp = nowIso();
     const memory = await base44.entities.Memory.create({
       title: payload.title || "XEON Kontext",
       content: payload.content || cleanText || "Kontext",
@@ -158,13 +185,15 @@ export async function runXeonAction(action, cleanText = "") {
       priority: payload.priority || "normal",
       source: "mobile",
       is_active: true,
+      sync_id: createSyncId("memory"),
+      created_at: timestamp,
+      updated_at: timestamp,
+      version: 1,
     });
-    await base44.entities.XeonSyncEvent.create({
+    await createSyncEvent({
       event_type: "memory_created",
-      payload: { memory_id: memory.id, title: memory.title, content: memory.content, category: memory.category },
-      source: "mobile",
+      payload: { memory_id: memory.id, sync_id: memory.sync_id, title: memory.title, content: memory.content, category: memory.category },
       target: "desktop",
-      status: "pending",
     });
     return `${cleanText}\n\nGespeichert und an Desktop-XEON synchronisiert, Sir.`.trim();
   }
@@ -174,12 +203,10 @@ export async function runXeonAction(action, cleanText = "") {
   }
 
   if (action.type === "PC" || action.type === "SCREEN") {
-    await base44.entities.XeonSyncEvent.create({
-      event_type: "mobile_message",
+    await createSyncEvent({
+      event_type: action.type === "PC" ? "pc_action_requested" : "screen_requested",
       payload: { action_type: action.type, request: action.payload || cleanText },
-      source: "mobile",
       target: "desktop",
-      status: "pending",
     });
     return `${cleanText}\n\nIch habe die Aktion in die Desktop-XEON-Sync-Queue gelegt, Sir. Der lokale XEON kann sie ausführen, sobald er verbunden ist.`.trim();
   }
