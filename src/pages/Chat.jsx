@@ -134,16 +134,20 @@ function ChatConversation({ conversationId }) {
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    Promise.all([
+  const loadConversation = async () => {
+    const [c, m] = await Promise.all([
       base44.entities.Conversation.get(conversationId),
       base44.entities.Message.filter({ conversation_id: conversationId }, "created_date", 200),
-    ])
-      .then(([c, m]) => {
-        setConv(c);
-        setMessages(m);
-      })
-      .finally(() => setLoading(false));
+    ]);
+    setConv(c);
+    setMessages(m);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadConversation();
+    const timer = window.setInterval(loadConversation, 3500);
+    return () => window.clearInterval(timer);
   }, [conversationId]);
 
   useEffect(() => {
@@ -154,15 +158,16 @@ function ChatConversation({ conversationId }) {
 
   const syncConversationMessage = async (message) => {
     await createSyncEvent({
-      event_type: "conversation_message",
+      event_type: "mobile_message",
       target: "desktop",
       ai_processing_mode: "none",
       payload: {
         conversation_id: conversationId,
         message_id: message.id,
         role: message.role,
-        content: message.content,
+        text: message.content,
         file_urls: message.file_urls || "",
+        action_type: message.file_urls ? "FILE" : "CHAT",
         source: "mobile",
       },
     });
@@ -183,6 +188,14 @@ function ChatConversation({ conversationId }) {
     });
     setMessages((prev) => [...prev, userMessage]);
     await syncConversationMessage(userMessage);
+
+    await base44.entities.Conversation.update(conversationId, {
+      last_message: userMsg,
+      message_count: messages.length + 1,
+      title: messages.length < 2 ? userMsg.slice(0, 60) : conv?.title,
+    });
+    setSending(false);
+    return;
 
     const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
     const systemPrompt = buildXeonSystemPrompt(mems);
@@ -231,6 +244,9 @@ function ChatConversation({ conversationId }) {
     setMessages((prev) => [...prev, userMessage]);
     await syncConversationMessage(userMessage);
 
+    setSending(false);
+    return;
+
     const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
     const response = await base44.integrations.Core.InvokeLLM({
       model: XEON_MODEL,
@@ -262,7 +278,7 @@ function ChatConversation({ conversationId }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{conv?.title || "XEON"}</p>
           <p className="text-[10px] text-neutral-500">
-            {sending ? "denkt nach..." : "bereit"}
+            {sending ? "an Desktop-XEON gesendet..." : "bereit"}
           </p>
         </div>
       </div>
@@ -297,7 +313,7 @@ function ChatConversation({ conversationId }) {
             <div className="w-6 h-6 rounded-lg bg-red-900/20 flex items-center justify-center">
               <Loader2 size={12} className="text-red-500 animate-spin" />
             </div>
-            <span className="text-xs text-neutral-500">XEON denkt nach...</span>
+            <span className="text-xs text-neutral-500">Desktop-XEON wird synchronisiert...</span>
           </motion.div>
         )}
       </div>
