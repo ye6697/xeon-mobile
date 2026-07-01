@@ -23,13 +23,13 @@ export default function Voice() {
   const chunksRef = useRef([]);
 
   const waitForDesktopResponse = async (conversationId) => {
-    for (let attempt = 0; attempt < 24; attempt += 1) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
       const messages = await base44.entities.Message.filter({ conversation_id: conversationId }, "created_date", 50);
       const responseMessage = [...messages].reverse().find((msg) => msg.role === "assistant" && msg.source === "desktop");
       if (responseMessage?.content) return responseMessage.content;
-      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+      await new Promise((resolve) => window.setTimeout(resolve, 1200));
     }
-    return "Sir, ich habe Ihre Nachricht an Desktop-XEON synchronisiert. Die Antwort ist noch unterwegs; offenbar nimmt er gerade den landschaftlich schoenen Weg durch die Queue.";
+    return "";
   };
 
   const startListening = async () => {
@@ -84,7 +84,23 @@ export default function Voice() {
         actionType: "VOICE",
       });
 
-      const finalResponse = await waitForDesktopResponse(conv.id);
+      const desktopResponse = await waitForDesktopResponse(conv.id);
+      let finalResponse = desktopResponse;
+      if (!finalResponse) {
+        const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 10);
+        const aiResponse = await base44.integrations.Core.InvokeLLM({
+          model: XEON_MODEL,
+          prompt: `${buildXeonSystemPrompt(mems, { voice: true })}\n\nNutzer sagt: ${transcriptResult}\n\nXEON:`,
+        });
+        const { cleanText, action } = extractXeonAction(aiResponse);
+        finalResponse = await runXeonAction(action, cleanText);
+        await base44.entities.Message.create({
+          conversation_id: conv.id,
+          role: "assistant",
+          content: finalResponse,
+          source: "mobile",
+        });
+      }
       setResponse(finalResponse);
       setStatus("speaking");
 

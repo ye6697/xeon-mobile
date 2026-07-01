@@ -1,6 +1,6 @@
 import { base44 } from "@/api/base44Client";
 
-export const XEON_MODEL = "gpt_5_5";
+export const XEON_MODEL = "gpt_5_4_mini";
 
 const ALLOWED_ENTITIES = [
   "Memory",
@@ -116,8 +116,6 @@ export async function runXeonAction(action, cleanText = "") {
       target: "desktop",
       status: "pending",
     });
-    return `${cleanText}\n\nIch habe das an Desktop-XEON gegeben, Sir. Der schwere Teil laeuft dort; sauberer, guenstiger, weniger Zirkus.`.trim();
-
     const topic = action.type === "NEWS"
       ? "Aktuelle Weltnachrichten mit Fokus auf internationalen Handel, Lieferketten, Zölle, Rohstoffe, Energie, Geopolitik und Business-Implikationen für MySupplyX. Deutsch, knapp, strukturiert, mit Abschnitt 'Warum das für Sie relevant ist'."
       : `Recherchiere: ${action.payload}. Antworte auf Deutsch, präzise und mit kurzer Einordnung für Sir.`;
