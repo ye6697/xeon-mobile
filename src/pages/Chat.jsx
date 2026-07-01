@@ -194,9 +194,6 @@ function ChatConversation({ conversationId }) {
       message_count: messages.length + 1,
       title: messages.length < 2 ? userMsg.slice(0, 60) : conv?.title,
     });
-    setSending(false);
-    return;
-
     const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
     const systemPrompt = buildXeonSystemPrompt(mems);
     const recentMsgs = messages.slice(-10).map((m) => `${m.role === "user" ? "Nutzer" : "XEON"}: ${m.content}`).join("\n");
@@ -244,9 +241,6 @@ function ChatConversation({ conversationId }) {
     setMessages((prev) => [...prev, userMessage]);
     await syncConversationMessage(userMessage);
 
-    setSending(false);
-    return;
-
     const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
     const response = await base44.integrations.Core.InvokeLLM({
       model: XEON_MODEL,
@@ -278,7 +272,7 @@ function ChatConversation({ conversationId }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{conv?.title || "XEON"}</p>
           <p className="text-[10px] text-neutral-500">
-            {sending ? "an Desktop-XEON gesendet..." : "bereit"}
+            {sending ? "XEON denkt..." : "bereit"}
           </p>
         </div>
       </div>
