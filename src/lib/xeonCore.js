@@ -1,6 +1,6 @@
 import { base44 } from "@/api/base44Client";
 
-export const XEON_MODEL = "gpt_5_4_mini";
+export const XEON_MODEL = "gpt_5_mini";
 
 const ALLOWED_ENTITIES = [
   "Memory",
