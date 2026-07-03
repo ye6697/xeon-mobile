@@ -9,6 +9,7 @@ import {
 import XeonLogo from "@/components/xeon/XeonLogo";
 import GlassCard from "@/components/xeon/GlassCard";
 import StatusBadge from "@/components/xeon/StatusBadge";
+import PendingSyncList from "@/components/xeon/PendingSyncList";
 
 export default function Dashboard() {
   const [memories, setMemories] = useState([]);
@@ -211,6 +212,9 @@ export default function Dashboard() {
         </div>
         <StatusBadge status="syncing" label={`${syncStats.pending} offen`} />
       </motion.div>
+
+      {/* Pending Syncs manuell verwalten */}
+      <PendingSyncList />
     </div>
   );
 }
