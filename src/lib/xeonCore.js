@@ -11,6 +11,8 @@ const ALLOWED_ENTITIES = [
   "SupplyTask",
   "XeonConfig",
   "Notification",
+  "XeonReminder",
+  "XeonSyncEvent",
 ];
 
 export function buildXeonSystemPrompt(memories = [], { voice = false } = {}) {
@@ -45,7 +47,7 @@ AKTIONEN: Wenn eine Aktion nötig ist, schreibe sie ans Ende deiner Antwort. Der
 [ACTION:SEARCH] suchbegriff - Internet durchsuchen und Ergebnisse zusammenfassen.
 [ACTION:NEWS] - Aktuelle Weltnachrichten mit Fokus Handel, Lieferketten, Geopolitik abrufen.
 [ACTION:OPEN] url - URL im Browser öffnen.
-[ACTION:BASE44] JSON - Mobile XEON-Daten lesen. Erlaubte Entities: ${ALLOWED_ENTITIES.join(", ")}. Formate: {"operation":"list","entity":"Memory","limit":10,"q":{}} oder {"operation":"get","entity":"Memory","id":"..."} oder {"operation":"health_snapshot"}. Keine Delete- oder Mass-Update-Aktionen.
+[ACTION:BASE44] JSON - Mobile XEON-Daten lesen UND schreiben. Erlaubte Entities: ${ALLOWED_ENTITIES.join(", ")}. Formate: {"operation":"list","entity":"Memory","limit":10,"q":{}} | {"operation":"get","entity":"Memory","id":"..."} | {"operation":"create","entity":"Memory","data":{...}} | {"operation":"update","entity":"Memory","id":"...","data":{...}} | {"operation":"delete","entity":"Memory","id":"..."} | {"operation":"health_snapshot"}. Du darfst auch pending XeonSyncEvent-Einträge (Sync-Queue zum Desktop) lesen, umschreiben oder entfernen, z.B. um veraltete oder doppelte Queue-Einträge zu bereinigen.
 [ACTION:MYSUPPLIEX] JSON - Echte MySupplyX API lesen. Formate: {"action":"dashboard"}, {"action":"list","entity":"Order","limit":10}, {"action":"get","entity":"Order","id":"..."}.
 [ACTION:REMINDER] JSON - Erinnerung für Mobile und Desktop-XEON anlegen. Format: {"title":"...","content":"...","scheduled_for":"YYYY-MM-DDTHH:mm:ss"}. Nutze lokale deutsche Zeitangaben des Nutzers und wandle sie in ISO-ähnliche Zeit um.
 [ACTION:MEMORY] JSON - Dauerhafte Erinnerung/Kontext speichern. Format: {"title":"...","content":"...","category":"preference|project|task|note|context|knowledge|setting"}.
@@ -79,11 +81,35 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
+function syncDedupeKey(event_type, payload = {}) {
+  if (event_type === "mobile_message" || event_type === "conversation_message") {
+    return payload.conversation_id ? `${event_type}:${payload.conversation_id}:${payload.role || ""}` : null;
+  }
+  if (payload.sync_id) return `${event_type}:${payload.sync_id}`;
+  return event_type;
+}
+
 export async function createSyncEvent({ event_type, payload, target = "desktop", source = "mobile", ai_processing_mode = "none" }) {
   const timestamp = nowIso();
   const eventPayload = event_type === "conversation_message"
     ? { ...payload, replay_to_ai: false, billable: false, ai_processing_mode: "none" }
     : payload;
+
+  // Nie doppelt senden: existiert ein pending Event mit gleichem Schlüssel, wird es durch das neueste ersetzt
+  const key = syncDedupeKey(event_type, eventPayload);
+  if (key) {
+    const pending = await base44.entities.XeonSyncEvent.filter({ status: "pending", event_type, target }, "-created_date", 50);
+    const duplicate = pending.find((e) => syncDedupeKey(e.event_type, e.payload) === key);
+    if (duplicate) {
+      return base44.entities.XeonSyncEvent.update(duplicate.id, {
+        payload: eventPayload,
+        source,
+        ai_processing_mode,
+        updated_at: timestamp,
+        version: (duplicate.version || 1) + 1,
+      });
+    }
+  }
 
   return base44.entities.XeonSyncEvent.create({
     event_type,
@@ -109,12 +135,10 @@ export async function runXeonAction(action, cleanText = "") {
   }
 
   if (action.type === "SEARCH" || action.type === "NEWS") {
-    await base44.entities.XeonSyncEvent.create({
+    await createSyncEvent({
       event_type: "mobile_message",
       payload: { action_type: action.type, request: action.payload || cleanText },
-      source: "mobile",
       target: "desktop",
-      status: "pending",
     });
     const topic = action.type === "NEWS"
       ? "Aktuelle Weltnachrichten mit Fokus auf internationalen Handel, Lieferketten, Zölle, Rohstoffe, Energie, Geopolitik und Business-Implikationen für MySupplyX. Deutsch, knapp, strukturiert, mit Abschnitt 'Warum das für Sie relevant ist'."
@@ -144,6 +168,18 @@ export async function runXeonAction(action, cleanText = "") {
     }
 
     if (!entity) return `${cleanText}\n\nDiese Entity ist mobil nicht freigegeben, Sir.`.trim();
+    if (operation === "create" && payload.data) {
+      const item = await base44.entities[entity].create(payload.data);
+      return `${cleanText}\n\n${entity} erstellt, Sir:\n\`\`\`json\n${JSON.stringify(item, null, 2)}\n\`\`\``.trim();
+    }
+    if (operation === "update" && payload.id && payload.data) {
+      const item = await base44.entities[entity].update(payload.id, payload.data);
+      return `${cleanText}\n\n${entity} aktualisiert, Sir:\n\`\`\`json\n${JSON.stringify(item, null, 2)}\n\`\`\``.trim();
+    }
+    if (operation === "delete" && payload.id) {
+      await base44.entities[entity].delete(payload.id);
+      return `${cleanText}\n\n${entity}-Eintrag entfernt, Sir.`.trim();
+    }
     if (operation === "get" && payload.id) {
       const item = await base44.entities[entity].get(payload.id);
       return `${cleanText}\n\n${entity}:\n\`\`\`json\n${JSON.stringify(item, null, 2)}\n\`\`\``.trim();
@@ -227,7 +263,7 @@ export async function runXeonAction(action, cleanText = "") {
 }
 
 export async function queueDesktopMessage({ conversationId, messageId, text, actionType = "CHAT", fileUrl = "" }) {
-  return base44.entities.XeonSyncEvent.create({
+  return createSyncEvent({
     event_type: "mobile_message",
     payload: {
       conversation_id: conversationId,
@@ -236,8 +272,6 @@ export async function queueDesktopMessage({ conversationId, messageId, text, act
       action_type: actionType,
       file_url: fileUrl,
     },
-    source: "mobile",
     target: "desktop",
-    status: "pending",
   });
 }

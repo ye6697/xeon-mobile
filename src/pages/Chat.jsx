@@ -131,6 +131,7 @@ function ChatConversation({ conversationId }) {
   const [conv, setConv] = useState(null);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef(null);
+  const didInitialScroll = useRef(false);
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -151,10 +152,12 @@ function ChatConversation({ conversationId }) {
   }, [conversationId]);
 
   useEffect(() => {
-    if (scrollRef.current) {
+    // Nur einmal beim Öffnen des Chats nach unten scrollen
+    if (!loading && !didInitialScroll.current && scrollRef.current && messages.length > 0) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      didInitialScroll.current = true;
     }
-  }, [messages]);
+  }, [loading, messages]);
 
   const syncConversationMessage = async (message) => {
     await createSyncEvent({
@@ -361,10 +364,20 @@ function MessageBubble({ message }) {
     >
       <div
         className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
-          isUser
-            ? "bg-red-900/25 border border-red-900/20 text-white"
-            : "bg-neutral-800/50 border border-neutral-700/30 text-neutral-200"
+          isUser ? "text-white" : "xeon-glass text-neutral-200"
         }`}
+        style={
+          isUser
+            ? {
+                background: "linear-gradient(135deg, rgba(139,26,26,0.85) 0%, rgba(58,10,10,0.95) 100%)",
+                border: "1px solid rgba(139,26,26,0.4)",
+                boxShadow: "0 0 20px rgba(139,26,26,0.15)",
+              }
+            : {
+                border: "1px solid rgba(139,26,26,0.15)",
+                boxShadow: "inset 0 0 20px rgba(139,26,26,0.03)",
+              }
+        }
       >
         {!isUser && (
           <div className="flex items-center gap-1.5 mb-1">
