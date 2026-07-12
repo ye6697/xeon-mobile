@@ -6,7 +6,7 @@ import PulseRing from "@/components/xeon/PulseRing";
 import XeonLogo from "@/components/xeon/XeonLogo";
 import BottomNav from "@/components/xeon/BottomNav";
 import ReactMarkdown from "react-markdown";
-import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, XEON_MODEL, queueDesktopMessage } from "@/lib/xeonCore";
+import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, XEON_MODEL, queueDesktopMessage, waitForDesktopResponse } from "@/lib/xeonCore";
 
 const STATUS_LABELS = {
   idle: "Tippe zum Sprechen",
@@ -21,16 +21,6 @@ export default function Voice() {
   const [response, setResponse] = useState("");
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
-
-  const waitForDesktopResponse = async (conversationId) => {
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      const messages = await base44.entities.Message.filter({ conversation_id: conversationId }, "created_date", 50);
-      const responseMessage = [...messages].reverse().find((msg) => msg.role === "assistant" && msg.source === "desktop");
-      if (responseMessage?.content) return responseMessage.content;
-      await new Promise((resolve) => window.setTimeout(resolve, 1200));
-    }
-    return "";
-  };
 
   const startListening = async () => {
     setTranscript("");
@@ -67,6 +57,7 @@ export default function Voice() {
       setTranscript(transcriptResult);
       setStatus("thinking");
 
+      const requestStartedAt = new Date().toISOString();
       const conv = await base44.entities.Conversation.create({
         title: transcriptResult.slice(0, 60),
         source: "mobile",
@@ -84,8 +75,8 @@ export default function Voice() {
         actionType: "VOICE",
       });
 
-      const desktopResponse = await waitForDesktopResponse(conv.id);
-      let finalResponse = desktopResponse;
+      const desktopMessage = await waitForDesktopResponse(conv.id, { after: requestStartedAt, timeoutMs: 20000 });
+      let finalResponse = desktopMessage?.content || "";
       if (!finalResponse) {
         const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 10);
         const aiResponse = await base44.integrations.Core.InvokeLLM({
@@ -185,7 +176,7 @@ export default function Voice() {
   const isActive = status !== "idle";
 
   return (
-    <div className="min-h-[100dvh] bg-[#0a0a0a] text-white flex flex-col">
+    <div className="min-h-[100dvh] xeon-desktop-bg xeon-grid-bg text-white flex flex-col">
       <div className="safe-top" />
       <div className="flex-1 flex flex-col items-center px-6 pt-8 pb-24 relative overflow-hidden">
         {/* Background glow */}
@@ -232,7 +223,7 @@ export default function Voice() {
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full flex items-center justify-center"
             style={{
               background: isActive
-                ? "linear-gradient(135deg, #8B1A1A 0%, #DC2626 100%)"
+                ? "radial-gradient(circle at 38% 35%, #ff4458, #751521 72%)"
                 : "linear-gradient(135deg, #1a1a1e 0%, #2a2a2e 100%)",
               boxShadow: isActive
                 ? "0 0 40px rgba(139,26,26,0.5), 0 0 100px rgba(139,26,26,0.15)"

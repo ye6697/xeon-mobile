@@ -13,8 +13,8 @@ export default function XeonLogo({ size = 32, animate = true }) {
       <div
         className="absolute inset-0 rounded-lg"
         style={{
-          background: "linear-gradient(135deg, #8B1A1A 0%, #3a0a0a 100%)",
-          boxShadow: "0 0 20px rgba(139, 26, 26, 0.4), 0 0 60px rgba(139, 26, 26, 0.1)",
+          background: "linear-gradient(135deg, #ff3347 0%, #780d1b 100%)",
+          boxShadow: "0 0 22px rgba(255, 51, 71, 0.45), 0 0 60px rgba(255, 51, 71, 0.12)",
         }}
       />
       <span
@@ -22,7 +22,7 @@ export default function XeonLogo({ size = 32, animate = true }) {
         style={{
           fontSize: size * 0.35,
           fontFamily: "'Inter', sans-serif",
-          textShadow: "0 0 10px rgba(139, 26, 26, 0.6)",
+          textShadow: "0 0 10px rgba(255, 51, 71, 0.7)",
         }}
       >
         X
