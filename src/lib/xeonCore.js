@@ -12,6 +12,7 @@ const ALLOWED_ENTITIES = [
   "XeonConfig",
   "Notification",
   "XeonReminder",
+  "XeonTodo",
   "XeonSyncEvent",
 ];
 
@@ -83,10 +84,45 @@ export function nowIso() {
 
 function syncDedupeKey(event_type, payload = {}) {
   if (event_type === "mobile_message" || event_type === "conversation_message") {
-    return payload.conversation_id ? `${event_type}:${payload.conversation_id}:${payload.role || ""}` : null;
+    // A message is immutable once queued. Using only the conversation id used to
+    // overwrite an earlier pending message when the user sent twice before the
+    // desktop poller ran.
+    return payload.message_id
+      ? `${event_type}:${payload.message_id}`
+      : payload.conversation_id
+        ? `${event_type}:${payload.conversation_id}:${payload.role || ""}:${payload.text || payload.request || ""}`
+        : null;
   }
   if (payload.sync_id) return `${event_type}:${payload.sync_id}`;
   return event_type;
+}
+
+const delay = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+export async function waitForDesktopResponse(conversationId, {
+  after = null,
+  timeoutMs = 20000,
+  pollMs = 1200,
+} = {}) {
+  const deadline = Date.now() + timeoutMs;
+  const afterTime = after ? new Date(after).getTime() : 0;
+
+  while (Date.now() < deadline) {
+    const messages = await base44.entities.Message.filter(
+      { conversation_id: conversationId },
+      "-created_date",
+      50,
+    );
+    const response = messages.find((message) => {
+      if (message.role !== "assistant" || message.source !== "desktop" || !message.content) return false;
+      if (!afterTime) return true;
+      const createdAt = new Date(message.created_date || message.created_at || 0).getTime();
+      return createdAt >= afterTime;
+    });
+    if (response) return response;
+    await delay(pollMs);
+  }
+  return null;
 }
 
 export async function createSyncEvent({ event_type, payload, target = "desktop", source = "mobile", ai_processing_mode = "none" }) {

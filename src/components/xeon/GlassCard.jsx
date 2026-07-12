@@ -15,7 +15,7 @@ export default function GlassCard({ children, className = "", glow = false, onCl
     <Comp
       {...motionProps}
       onClick={onClick}
-      className={`xeon-glass rounded-xl p-4 ${glow ? "xeon-border-glow" : ""} ${onClick ? "cursor-pointer active:scale-[0.98] transition-transform" : ""} ${className}`}
+      className={`xeon-glass rounded-lg p-4 ${glow ? "xeon-border-glow" : ""} ${onClick ? "cursor-pointer active:scale-[0.98] transition-transform" : ""} ${className}`}
     >
       {children}
     </Comp>

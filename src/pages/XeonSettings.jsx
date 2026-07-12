@@ -4,20 +4,20 @@ import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Server, Cpu, Globe, Bell, RefreshCw,
-  Shield, ChevronRight, LogOut, User, Wifi, Database
+  Shield, ChevronRight, LogOut, User
 } from "lucide-react";
 import GlassCard from "@/components/xeon/GlassCard";
 import StatusBadge from "@/components/xeon/StatusBadge";
 import XeonLogo from "@/components/xeon/XeonLogo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-const MODELS = ["GPT-5.5", "GPT-4o", "Claude Sonnet", "Claude Opus", "Lokal"];
+const MODELS = ["GPT-5.4 mini"];
 
 export default function XeonSettings() {
   const [user, setUser] = useState(null);
   const [editDialog, setEditDialog] = useState(null);
   const [settings, setSettings] = useState({
-    model: "GPT-5.5",
+    model: "GPT-5.4 mini",
     language: "Deutsch",
     api_url: "",
     sync_enabled: true,
@@ -198,7 +198,7 @@ export default function XeonSettings() {
               whileTap={{ scale: 0.95 }}
               onClick={() => { updateSetting("api_url", settings.api_url); setEditDialog(null); }}
               className="w-full py-2.5 rounded-xl text-sm font-medium text-white"
-              style={{ background: "linear-gradient(135deg, #8B1A1A, #5a1010)" }}
+              style={{ background: "linear-gradient(180deg, #ff4055, #b40f24)" }}
             >
               Speichern
             </motion.button>

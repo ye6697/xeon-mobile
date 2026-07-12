@@ -4,20 +4,20 @@ import { base44 } from "@/api/base44Client";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import {
-  Send, Plus, ArrowLeft, Paperclip, Image, FileText,
-  Loader2, Bot, User, Trash2, MoreVertical
+  Send, Plus, ArrowLeft, Paperclip,
+  Loader2, Bot, Trash2
 } from "lucide-react";
 import XeonLogo from "@/components/xeon/XeonLogo";
 import GlassCard from "@/components/xeon/GlassCard";
 import BottomNav from "@/components/xeon/BottomNav";
-import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, createSyncEvent, XEON_MODEL } from "@/lib/xeonCore";
+import { buildXeonSystemPrompt, extractXeonAction, runXeonAction, createSyncEvent, waitForDesktopResponse, XEON_MODEL } from "@/lib/xeonCore";
 
 export default function Chat() {
   const { conversationId } = useParams();
 
   if (conversationId) return <ChatConversation conversationId={conversationId} />;
   return (
-    <div className="min-h-[100dvh] bg-[#0a0a0a] text-white flex flex-col">
+    <div className="min-h-[100dvh] xeon-desktop-bg text-white flex flex-col">
       <div className="safe-top" />
       <div className="flex-1 pb-20">
         <ChatList />
@@ -65,8 +65,8 @@ function ChatList() {
           onClick={createNew}
           className="w-9 h-9 rounded-xl flex items-center justify-center"
           style={{
-            background: "linear-gradient(135deg, #8B1A1A, #5a1010)",
-            boxShadow: "0 0 15px rgba(139,26,26,0.3)",
+            background: "linear-gradient(180deg, #ff4055, #b40f24)",
+            boxShadow: "0 0 20px rgba(255,51,71,0.3)",
           }}
         >
           <Plus size={18} className="text-white" />
@@ -88,7 +88,7 @@ function ChatList() {
             whileTap={{ scale: 0.95 }}
             onClick={createNew}
             className="px-6 py-2.5 rounded-xl text-sm font-medium text-white"
-            style={{ background: "linear-gradient(135deg, #8B1A1A, #5a1010)" }}
+            style={{ background: "linear-gradient(180deg, #ff4055, #b40f24)" }}
           >
             Neues Gespräch
           </motion.button>
@@ -182,49 +182,64 @@ function ChatConversation({ conversationId }) {
     setInput("");
     setSending(true);
 
-    const userMessage = await base44.entities.Message.create({
+    try {
+      const requestStartedAt = new Date().toISOString();
+      const userMessage = await base44.entities.Message.create({
       conversation_id: conversationId,
       role: "user",
       content: userMsg,
       source: "mobile",
       ai_processing_mode: "none",
     });
-    setMessages((prev) => [...prev, userMessage]);
-    await syncConversationMessage(userMessage);
+      setMessages((prev) => [...prev, userMessage]);
+      await syncConversationMessage(userMessage);
 
-    await base44.entities.Conversation.update(conversationId, {
-      last_message: userMsg,
-      message_count: messages.length + 1,
-      title: messages.length < 2 ? userMsg.slice(0, 60) : conv?.title,
-    });
-    const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
-    const systemPrompt = buildXeonSystemPrompt(mems);
-    const recentMsgs = messages.slice(-10).map((m) => `${m.role === "user" ? "Nutzer" : "XEON"}: ${m.content}`).join("\n");
+      await base44.entities.Conversation.update(conversationId, {
+        last_message: userMsg,
+        message_count: messages.length + 1,
+        title: messages.length < 2 ? userMsg.slice(0, 60) : conv?.title,
+      });
 
-    const response = await base44.integrations.Core.InvokeLLM({
-      model: XEON_MODEL,
-      prompt: `${systemPrompt}\n\nGesprächsverlauf:\n${recentMsgs}\n\nNutzer: ${userMsg}\n\nXEON:`,
-    });
-    const { cleanText, action } = extractXeonAction(response);
-    const finalResponse = await runXeonAction(action, cleanText);
+      // Desktop-XEON is the primary brain. Mobile AI is only a fallback when the
+      // local computer is offline or does not answer within two poll cycles.
+      const desktopMessage = await waitForDesktopResponse(conversationId, {
+        after: requestStartedAt,
+        timeoutMs: 20000,
+      });
+      if (desktopMessage) {
+        await loadConversation();
+        return;
+      }
 
-    const assistantMessage = await base44.entities.Message.create({
+      const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 20);
+      const systemPrompt = buildXeonSystemPrompt(mems);
+      const recentMsgs = messages.slice(-10).map((m) => `${m.role === "user" ? "Nutzer" : "XEON"}: ${m.content}`).join("\n");
+      const response = await base44.integrations.Core.InvokeLLM({
+        model: XEON_MODEL,
+        prompt: `${systemPrompt}\n\nDesktop-XEON ist gerade nicht erreichbar. Antworte als mobile Ausweichinstanz.\n\nGesprächsverlauf:\n${recentMsgs}\n\nNutzer: ${userMsg}\n\nXEON:`,
+      });
+      const { cleanText, action } = extractXeonAction(response);
+      const finalResponse = await runXeonAction(action, cleanText);
+
+      const assistantMessage = await base44.entities.Message.create({
       conversation_id: conversationId,
       role: "assistant",
       content: finalResponse,
       source: "mobile",
       ai_processing_mode: "none",
     });
-    setMessages((prev) => [...prev, assistantMessage]);
-    await syncConversationMessage(assistantMessage);
+      setMessages((prev) => [...prev, assistantMessage]);
 
-    await base44.entities.Conversation.update(conversationId, {
-      last_message: userMsg,
-      message_count: messages.length + 2,
-      title: messages.length < 2 ? userMsg.slice(0, 60) : conv?.title,
-    });
-
-    setSending(false);
+      await base44.entities.Conversation.update(conversationId, {
+        last_message: finalResponse,
+        message_count: messages.length + 2,
+        title: messages.length < 2 ? userMsg.slice(0, 60) : conv?.title,
+      });
+    } catch (error) {
+      console.error("XEON chat send failed", error);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleUpload = async (e) => {
@@ -264,9 +279,9 @@ function ChatConversation({ conversationId }) {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#0a0a0a]">
+    <div className="flex flex-col h-[100dvh] xeon-desktop-bg">
       {/* Header */}
-      <div className="safe-top bg-[#0a0a0a]" />
+      <div className="safe-top bg-[#090205]/90" />
       <div className="xeon-glass-strong px-4 py-3 flex items-center gap-3 z-10">
         <button onClick={() => navigate("/chat")} className="p-1">
           <ArrowLeft size={20} className="text-neutral-400" />
@@ -275,7 +290,7 @@ function ChatConversation({ conversationId }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{conv?.title || "XEON"}</p>
           <p className="text-[10px] text-neutral-500">
-            {sending ? "XEON denkt..." : "bereit"}
+            {sending ? "Desktop-XEON wird kontaktiert..." : "bereit"}
           </p>
         </div>
       </div>
@@ -310,7 +325,7 @@ function ChatConversation({ conversationId }) {
             <div className="w-6 h-6 rounded-lg bg-red-900/20 flex items-center justify-center">
               <Loader2 size={12} className="text-red-500 animate-spin" />
             </div>
-            <span className="text-xs text-neutral-500">Desktop-XEON wird synchronisiert...</span>
+            <span className="text-xs text-neutral-500">Warte auf Desktop-XEON… Mobile übernimmt bei Bedarf.</span>
           </motion.div>
         )}
       </div>
@@ -341,7 +356,7 @@ function ChatConversation({ conversationId }) {
             className="p-2 rounded-xl flex-shrink-0 disabled:opacity-30"
             style={{
               background: input.trim() && !sending
-                ? "linear-gradient(135deg, #8B1A1A, #5a1010)"
+                ? "linear-gradient(180deg, #ff4055, #b40f24)"
                 : "transparent",
             }}
           >
@@ -385,6 +400,7 @@ function MessageBubble({ message }) {
               <Bot size={10} className="text-red-500" />
             </div>
             <span className="text-[9px] text-red-600 font-semibold tracking-wider uppercase">XEON</span>
+            <span className="text-[9px] text-neutral-600">{message.source === "desktop" ? "Desktop" : "Mobile-Fallback"}</span>
           </div>
         )}
         <div className="text-sm leading-relaxed">

@@ -19,6 +19,7 @@ import Voice from '@/pages/Voice';
 import Supply from '@/pages/Supply';
 import Memories from '@/pages/Memories';
 import XeonSettings from '@/pages/XeonSettings';
+import Tasks from '@/pages/Tasks';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -26,9 +27,9 @@ const AuthenticatedApp = () => {
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0a0a0a]">
+      <div className="fixed inset-0 flex items-center justify-center xeon-desktop-bg">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #8B1A1A, #3a0a0a)", boxShadow: "0 0 30px rgba(139,26,26,0.3)" }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #ff3347, #780d1b)", boxShadow: "0 0 30px rgba(255,51,71,0.38)" }}>
             <span className="text-white font-bold text-lg" style={{ textShadow: "0 0 10px rgba(139,26,26,0.6)" }}>X</span>
           </div>
           <div className="w-6 h-6 border-2 border-neutral-800 border-t-red-800 rounded-full animate-spin" />
@@ -60,6 +61,7 @@ const AuthenticatedApp = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/supply" element={<Supply />} />
           <Route path="/memories" element={<Memories />} />
+          <Route path="/tasks" element={<Tasks />} />
           <Route path="/settings" element={<XeonSettings />} />
         </Route>
         <Route path="/chat" element={<Chat />} />

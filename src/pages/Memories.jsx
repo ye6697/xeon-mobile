@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import GlassCard from "@/components/xeon/GlassCard";
 import StatusBadge from "@/components/xeon/StatusBadge";
-import PageHeader from "@/components/xeon/PageHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const categoryIcons = {
@@ -71,7 +70,7 @@ export default function Memories() {
           whileTap={{ scale: 0.9 }}
           onClick={() => setShowAdd(true)}
           className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #8B1A1A, #5a1010)" }}
+          style={{ background: "linear-gradient(180deg, #ff4055, #b40f24)" }}
         >
           <Plus size={18} className="text-white" />
         </motion.button>
@@ -172,7 +171,7 @@ export default function Memories() {
               whileTap={{ scale: 0.95 }}
               onClick={addMemory}
               className="w-full py-2.5 rounded-xl text-sm font-medium text-white"
-              style={{ background: "linear-gradient(135deg, #8B1A1A, #5a1010)" }}
+              style={{ background: "linear-gradient(180deg, #ff4055, #b40f24)" }}
             >
               Speichern
             </motion.button>

@@ -1,0 +1,35 @@
+{
+  "name": "XeonTodo",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "priority": {
+      "type": "string",
+      "enum": ["low", "normal", "high", "critical"],
+      "default": "normal"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "in_progress", "completed", "cancelled"],
+      "default": "open"
+    },
+    "due_at": { "type": "string" },
+    "source": {
+      "type": "string",
+      "enum": ["mobile", "desktop"],
+      "default": "mobile"
+    },
+    "desktop_sync_status": {
+      "type": "string",
+      "enum": ["pending", "synced", "failed"],
+      "default": "pending"
+    },
+    "sync_event_id": { "type": "string" },
+    "sync_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "version": { "type": "number", "default": 1 }
+  },
+  "required": ["title", "priority", "status"]
+}

@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
-import { Link } from "react-router-dom";
 import {
-  Package, AlertTriangle, ShoppingCart, MessageSquare,
-  BarChart3, CheckSquare, ChevronRight, Plus, TrendingUp,
-  TrendingDown, Truck
+  Package, AlertTriangle, ShoppingCart, CheckSquare, Truck
 } from "lucide-react";
 import GlassCard from "@/components/xeon/GlassCard";
 import StatusBadge from "@/components/xeon/StatusBadge";
