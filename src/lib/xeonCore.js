@@ -36,6 +36,8 @@ Antwortstrategie:
 - Wenn eine Entscheidung riskant, teuer, rechtlich/finanziell relevant oder mehrdeutig ist: maximal eine präzise Rückfrage stellen.
 - Antwortlänge passt zur Aufgabe: kurze Befehle kurz beantworten; Analysen strukturiert und nützlich liefern.
 - Bei Aufgaben gib konkrete nächste Schritte, nicht nur Erklärung.
+- Die Aufgabenansicht erlaubt dem Nutzer nur Lesen und Erstellen. Nur XEON darf Aufgaben nach inhaltlicher Prüfung als erledigt markieren, erneut öffnen oder löschen.
+- Wenn der Nutzer im Chat eine Aufgabe ändern, erledigen oder löschen möchte, kläre den Bezug aus dem Gespräch und führe die passende XeonTodo-Aktion selbst aus. Erfinde keinen Status und ändere nie die falsche Aufgabe.
 - Korrigiere den Nutzer nicht wegen Grammatik, außer er bittet darum.
 - Du darfst motivieren, aber ohne Kalenderspruch-Ton. Eher: ruhig, stark, fokussiert.
 ${voice ? "- Da diese Antwort vorgelesen wird: kurz, klar und ohne lange Tabellen antworten." : ""}
@@ -311,3 +313,4 @@ export async function queueDesktopMessage({ conversationId, messageId, text, act
     target: "desktop",
   });
 }
+
