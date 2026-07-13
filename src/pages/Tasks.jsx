@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
-import { Check, Circle, Clock3, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { Clock3, LockKeyhole, Plus, RefreshCw, X } from "lucide-react";
 import { createSyncEvent, createSyncId, nowIso } from "@/lib/xeonCore";
 
 const PRIORITIES = {
@@ -10,6 +10,20 @@ const PRIORITIES = {
   high: { label: "Wichtig", color: "#ff596b", rank: 3 },
   critical: { label: "Kritisch", color: "#ff243d", rank: 4 },
 };
+
+function taskSnapshot(tasks = []) {
+  return JSON.stringify(tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    priority: task.priority,
+    status: task.status,
+    due_at: task.due_at,
+    desktop_sync_status: task.desktop_sync_status,
+    sync_event_id: task.sync_event_id,
+    updated_at: task.updated_at,
+  })));
+}
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
@@ -23,12 +37,13 @@ export default function Tasks() {
       base44.entities.XeonSyncEvent.list("-updated_date", 200),
     ]);
     const syncStatusById = new Map(syncEvents.map((event) => [event.id, event.status]));
-    setTasks(rows.map((task) => ({
+    const nextTasks = rows.map((task) => ({
       ...task,
       desktop_sync_status: syncStatusById.get(task.sync_event_id) === "processed"
         ? "synced"
         : task.desktop_sync_status,
-    })));
+    }));
+    setTasks((current) => taskSnapshot(current) === taskSnapshot(nextTasks) ? current : nextTasks);
     setLoading(false);
   };
 
@@ -81,39 +96,13 @@ export default function Tasks() {
     setShowForm(false);
   };
 
-  const toggleTask = async (task) => {
-    const completed = task.status !== "completed";
-    const updated = await base44.entities.XeonTodo.update(task.id, {
-      status: completed ? "completed" : "open",
-      desktop_sync_status: "pending",
-      updated_at: nowIso(),
-      version: (task.version || 1) + 1,
-    });
-    const conversation = await base44.entities.Conversation.create({ title: `Aufgabenstatus: ${task.title}`, source: "mobile" });
-    const command = completed
-      ? `Die Aufgabe „${task.title}“ ist erledigt. Aktualisiere den Aufgabenstatus in Desktop-XEON.`
-      : `Öffne die Aufgabe „${task.title}“ erneut in Desktop-XEON.`;
-    const message = await base44.entities.Message.create({ conversation_id: conversation.id, role: "user", content: command, source: "mobile" });
-    await createSyncEvent({
-      event_type: "mobile_message",
-      target: "desktop",
-      payload: { conversation_id: conversation.id, message_id: message.id, role: "user", text: command, action_type: "TODO_STATUS", sync_id: task.sync_id },
-    });
-    setTasks((current) => current.map((item) => item.id === task.id ? updated : item));
-  };
-
-  const deleteTask = async (task) => {
-    await base44.entities.XeonTodo.delete(task.id);
-    setTasks((current) => current.filter((item) => item.id !== task.id));
-  };
-
   return (
     <div className="px-4 pb-6 xeon-grid-bg min-h-[calc(100dvh-5rem)]">
       <header className="pt-4 pb-5 flex items-end justify-between">
         <div>
           <p className="text-[10px] font-black tracking-[.24em] text-[#ff7888]">ACCOUNTABILITY</p>
           <h1 className="text-3xl font-black text-[#ffecef] xeon-glow-text">AUFGABEN</h1>
-          <p className="text-xs text-[#b98289] mt-1">Priorisieren und an Desktop-XEON senden</p>
+          <p className="text-xs text-[#b98289] mt-1">Erstellen und von XEON verwalten lassen</p>
         </div>
         <motion.button whileTap={{ scale: .9 }} onClick={() => setShowForm(true)} className="w-11 h-11 rounded-lg bg-[#c9132a] border border-[#ff596b]/50 grid place-items-center shadow-[0_0_28px_rgba(255,51,71,.3)]">
           <Plus size={21} />
@@ -129,7 +118,7 @@ export default function Tasks() {
       {loading ? <div className="py-16 grid place-items-center"><RefreshCw className="animate-spin text-[#ff3347]" /></div> : (
         <div className="space-y-2">
           <AnimatePresence>
-            {orderedTasks.map((task) => <TaskRow key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} />)}
+            {orderedTasks.map((task) => <TaskRow key={task.id} task={task} />)}
           </AnimatePresence>
           {!orderedTasks.length && <div className="xeon-glass rounded-lg p-8 text-center text-[#b98289] text-sm">Keine offenen Befehle. Erstellen Sie Ihre erste Aufgabe.</div>}
         </div>
@@ -144,21 +133,20 @@ function Metric({ label, value, danger = false }) {
   return <div className="xeon-glass rounded-lg p-3 text-center"><p className="text-[9px] uppercase tracking-widest text-[#b98289]">{label}</p><p className={`text-xl font-black ${danger ? "text-[#ff3347] xeon-glow-text" : "text-[#ffecef]"}`}>{value}</p></div>;
 }
 
-function TaskRow({ task, onToggle, onDelete }) {
+function TaskRow({ task }) {
   const priority = PRIORITIES[task.priority] || PRIORITIES.normal;
   const done = task.status === "completed";
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} className="xeon-glass rounded-lg p-3.5 flex gap-3" style={{ borderLeft: `3px solid ${priority.color}` }}>
-      <button onClick={() => onToggle(task)} className="mt-0.5 flex-shrink-0">{done ? <span className="w-6 h-6 rounded-full bg-[#b40f24] grid place-items-center"><Check size={14} /></span> : <Circle size={24} color={priority.color} />}</button>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2"><p className={`text-sm font-semibold ${done ? "line-through text-[#77565a]" : "text-[#ffecef]"}`}>{task.title}</p><span className="text-[8px] uppercase font-black tracking-wider" style={{ color: priority.color }}>{priority.label}</span></div>
         {task.description && <p className="text-[11px] text-[#b98289] mt-1">{task.description}</p>}
         <div className="flex items-center gap-3 mt-2 text-[9px] text-[#8d666b]">
           {task.due_at && <span className="flex gap-1 items-center"><Clock3 size={10} />{new Date(task.due_at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
           <span className="flex gap-1 items-center"><RefreshCw size={9} />{task.desktop_sync_status === "synced" ? "Desktop synchron" : "Sync gesendet"}</span>
+          <span className="flex gap-1 items-center"><LockKeyhole size={9} />{done ? "Von XEON erledigt" : "XEON verwaltet"}</span>
         </div>
       </div>
-      <button onClick={() => onDelete(task)} className="text-[#77565a] active:text-[#ff3347]"><Trash2 size={15} /></button>
     </motion.div>
   );
 }
@@ -179,3 +167,4 @@ function TaskForm({ form, setForm, onClose, onCreate }) {
     </motion.div>
   </motion.div>;
 }
+
