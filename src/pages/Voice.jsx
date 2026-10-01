@@ -20,7 +20,6 @@ export default function Voice() {
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
   const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
 
   const startListening = async () => {
     setTranscript("");
@@ -108,47 +107,6 @@ export default function Voice() {
     };
 
     recognition.start();
-    return;
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-    mediaRecorderRef.current = mediaRecorder;
-    chunksRef.current = [];
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-
-    mediaRecorder.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      const file = new File([blob], "voice.webm", { type: "audio/webm" });
-
-      setStatus("thinking");
-
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const transcriptResult = await base44.integrations.Core.TranscribeAudio({ audio_url: file_url });
-      setTranscript(transcriptResult);
-
-      const mems = await base44.entities.Memory.filter({ is_active: true }, "-priority", 10);
-      const aiResponse = await base44.integrations.Core.InvokeLLM({
-        model: XEON_MODEL,
-        prompt: `${buildXeonSystemPrompt(mems, { voice: true })}\n\nNutzer sagt: ${transcriptResult}\n\nXEON:`,
-      });
-      const { cleanText, action } = extractXeonAction(aiResponse);
-      const finalResponse = await runXeonAction(action, cleanText);
-      setResponse(finalResponse);
-      setStatus("speaking");
-
-      const synth = window.speechSynthesis;
-      const utterance = new SpeechSynthesisUtterance(finalResponse);
-      utterance.lang = "de-DE";
-      utterance.rate = 1;
-      utterance.onend = () => setStatus("idle");
-      synth.speak(utterance);
-    };
-
-    mediaRecorder.start();
   };
 
   const stopListening = () => {
