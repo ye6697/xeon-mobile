@@ -85,7 +85,7 @@ export default function Dashboard() {
       <div className="mt-4 xeon-glass rounded-lg px-3 py-2.5 flex items-center gap-3">
         <Wifi size={14} className="text-[#ff3347]" />
         <div className="flex-1"><p className="text-[10px] font-semibold text-[#ffd7dc]">Desktop-Verbindung</p><p className="text-[9px] text-[#8d666b]">{lastSync ? `Letzte Aktivität: ${new Date(lastSync).toLocaleString("de-DE")}` : "Warte auf ersten Desktop-Sync"}</p></div>
-        <span className="text-[9px] text-[#ff7888]">{sync.pending ? "SYNCHRONISIERT" : "BEREIT"}</span>
+        <span className="text-[9px] text-[#ff7888]">{sync.pending ? `${sync.pending} AUSSTEHEND` : "SYNCHRONISIERT"}</span>
       </div>
     </div>
   );
