@@ -1,0 +1,4 @@
+{
+  "name": "xeon-desktop-bridge",
+  "entry": "entry.ts"
+}
